@@ -1,0 +1,170 @@
+# templates/index.html
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Face Recognition Attendance</title>
+  <style>
+    body {
+      margin: 0;
+      font-family: 'Segoe UI', sans-serif;
+      background-color: #0f0f0f;
+      color: #fff;
+    }
+    h2 {
+      text-align: center;
+      padding-top: 1rem;
+      font-size: 2rem;
+    }
+    .container {
+      display: flex;
+      justify-content: center;
+      gap: 2rem;
+      margin-top: 2rem;
+      padding: 1rem;
+      flex-wrap: wrap;
+    }
+    .video-container {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+    video {
+      border-radius: 16px;
+      width: 480px;
+      height: 360px;
+    }
+    button {
+      margin-top: 1rem;
+      padding: 0.5rem 1.2rem;
+      background-color: #22c55e;
+      border: none;
+      border-radius: 8px;
+      color: white;
+      cursor: pointer;
+      font-size: 1rem;
+    }
+    button:hover {
+      background-color: #16a34a;
+    }
+    .info-box {
+      background-color: #1e1e1e;
+      border-radius: 16px;
+      padding: 1rem 2rem;
+      width: 320px;
+    }
+    .info-box h3 {
+      display: flex;
+      align-items: center;
+      font-size: 1.1rem;
+    }
+    .info-box img {
+      width: 100%;
+      border-radius: 12px;
+      margin-top: 1rem;
+    }
+    .student-info {
+      margin-top: 1rem;
+    }
+    .student-info p {
+      margin: 0.4rem 0;
+    }
+    .student-info code {
+      background-color: #14532d;
+      padding: 0.1rem 0.5rem;
+      border-radius: 4px;
+      font-family: monospace;
+    }
+    .status-box {
+      margin-top: 1rem;
+      padding: 0.8rem 1rem;
+      border-radius: 8px;
+      font-size: 0.95rem;
+    }
+    .success {
+      background-color: #14532d;
+      color: #bbf7d0;
+    }
+    .error {
+      background-color: #7f1d1d;
+      color: #fecaca;
+    }
+  </style>
+</head>
+<body>
+  <h2>📸 <strong>Face Recognition Attendance System</strong></h2>
+  <div class="container">
+    <div class="video-container">
+      <video id="video" autoplay></video>
+      <button onclick="captureAndSend()">Submit for Attendence</button>
+    </div>
+
+    <div class="info-box">
+      <h3>👤 Detected Student</h3>
+      <img id="student-image" src="" alt="" style="display:none;">
+      <div class="student-info" id="student-info" style="display:none;">
+        <p><strong>Name:</strong> <code id="student-name"></code></p>
+        <p><strong>ID Number:</strong> <code id="student-id"></code></p>
+        <p><strong>Department:</strong> <code id="student-dept"></code></p>
+      </div>
+      <p id="result" class="status-box"></p>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+  <script>
+    const video = document.getElementById('video');
+    const resultText = document.getElementById('result');
+    const studentImage = document.getElementById('student-image');
+    const studentInfo = document.getElementById('student-info');
+    const nameEl = document.getElementById('student-name');
+    const idEl = document.getElementById('student-id');
+    const deptEl = document.getElementById('student-dept');
+
+    navigator.mediaDevices.getUserMedia({ video: true })
+      .then(stream => {
+        video.srcObject = stream;
+      })
+      .catch(err => {
+        resultText.innerText = 'Camera access denied: ' + err;
+        resultText.className = 'status-box error';
+      });
+
+    function captureAndSend() {
+      const canvas = document.createElement('canvas');
+      canvas.width = 320;
+      canvas.height = 240;
+      const context = canvas.getContext('2d');
+      context.drawImage(video, 0, 0, 320, 240);
+      const imageData = canvas.toDataURL('image/jpeg');
+
+      axios.post('/recognize', { image: imageData })
+        .then(res => {
+          const data = res.data;
+          if (data.status === 'success') {
+            resultText.innerText = `✅ Attendance marked for ${data.name} (${data.id}, ${data.department})`;
+            resultText.className = 'status-box success';
+            nameEl.innerText = data.name;
+            idEl.innerText = data.id;
+            deptEl.innerText = data.department;
+            studentInfo.style.display = 'block';
+            studentImage.src = `/static/dataset/${data.id}/0.jpg`;
+            studentImage.style.display = 'block';
+          } else {
+            resultText.innerText = `❌ ${data.message || 'Face not recognized'}`;
+            resultText.className = 'status-box error';
+            studentInfo.style.display = 'none';
+            studentImage.style.display = 'none';
+          }
+        })
+        .catch(err => {
+          resultText.innerText = 'Error: ' + err;
+          resultText.className = 'status-box error';
+          studentInfo.style.display = 'none';
+          studentImage.style.display = 'none';
+        });
+    }
+  </script>
+</body>
+</html>
